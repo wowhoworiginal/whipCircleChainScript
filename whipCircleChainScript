@@ -1,0 +1,96 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class whipCircleChainScript : MonoBehaviour
+{
+    public GameObject whipCircleChild; //assign in editor
+    public int Damage; //assign in editor
+    public PlayerStats_Current playerStats;
+    public Dash playerdash;
+    public GameObject Vboss;
+    public GameObject player;
+    public float whipTideDistanceLenience; //assign in editor
+    public float whipTideSpeed; //assign in editor  
+    public bool whiptidebool; 
+    public EdgeCollider2D edgecollider;
+    public float graceperiod; //time that collider is disabled after whiptide, ASSIGN IN EDITOR 
+    public VBossHealthScript vbosshealthscript;
+    public int whiptideDamage; //assign in editor 
+
+    // Start is called before the first frame update
+    void Awake()
+    {
+        playerStats = GameObject.FindGameObjectWithTag("Player").GetComponent<PlayerStats_Current>();
+        playerdash = GameObject.FindGameObjectWithTag("Player").GetComponent<Dash>();
+        Vboss = GameObject.FindGameObjectWithTag("Vboss");
+        vbosshealthscript = GameObject.FindGameObjectWithTag("Vboss").GetComponent<VBossHealthScript>();
+        player = GameObject.FindGameObjectWithTag("Player");
+        edgecollider = GetComponent<EdgeCollider2D>();
+        whiptidebool = false;
+    }
+
+    // Update is called once per frame
+    void Update()
+    {
+        transform.position = whipCircleChild.transform.position;
+
+    }
+
+    public void OnTriggerEnter2D(Collider2D collision)
+    {
+        if (collision.gameObject.CompareTag("Player") && playerdash.Dashed == true && whiptidebool == false)
+        {
+            edgecollider.enabled = false;
+            StartCoroutine(WhipTide());
+            StartCoroutine(VbossFreeze()); 
+        }
+        else if (collision.gameObject.CompareTag("Player"))
+        {
+            playerStats.HealthChange(Damage);
+        }
+    }
+
+    public IEnumerator WhipTide()
+    {
+        whiptidebool = true;
+        if (playerdash.Dashed == true)
+        {
+
+            edgecollider.enabled = false;
+            Debug.Log("whiptide");
+            Vector2 currentPosition = whipCircleChild.transform.position;
+
+
+
+            playerdash.zipping = true;
+            while (Vector2.Distance(player.transform.position, Vboss.transform.position) > whipTideDistanceLenience)
+            {
+                whipCircleChild.transform.position = currentPosition; //freeze the whip  
+                player.transform.position = Vector2.MoveTowards(player.transform.position, Vboss.transform.position, whipTideSpeed * Time.deltaTime);
+                yield return null;
+                Debug.Log("whiptidecycle");
+            }
+            vbosshealthscript.HealthChange(whiptideDamage);  //we manually damage Vboss instead of relying on Player's Dash collider. Can change damage to just the player dash damage variable later if want 
+            Debug.Log("whiptideDamage"); 
+            playerdash.zipping = false;
+            whiptidebool = false;
+
+            yield return new WaitForSecondsRealtime(graceperiod);
+            edgecollider.enabled = true;  
+
+        }
+    }
+    private IEnumerator VbossFreeze() 
+    {
+        Vector2 VbossCurrentPosition = Vboss.transform.position;
+        while(whiptidebool == true) 
+        {
+            Physics2D.IgnoreLayerCollision(7, 6, true);
+            Vboss.transform.position = VbossCurrentPosition; 
+            yield return null;
+        }
+
+    }
+
+}
